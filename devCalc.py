@@ -73,6 +73,7 @@ class DevCalc:
         self.my = mysql.MySQL()
         self.NumMap = {}
         self.StMap = {}
+        self.tags = []
         self.LongStopStMap = {}
         self.CountMapInit = {}
         self.CountMap = {}
@@ -83,6 +84,7 @@ class DevCalc:
         self.SumList_10m = []
         self.AvgList = []
         self.AvgList_10m = []
+        self.MaxList_10m = []
         self.SumMapInit = {}
         self.SumMapInit_10m = {}
         self.SumMap = {}
@@ -155,9 +157,6 @@ class DevCalc:
             tag_list.append('WNAC_WdSpd')
             # 环境温度
             tag_list.append('WNAC_IntlTmp')
-
-            #故障次数及故障时长
-            #Sumlist数组
             self.SumList.append('CalcRT_FltFilterCnt')
             self.SumList.append('CalcRT_FltFilterCntD')
             self.SumList.append('CalcRT_FltFilterCntM')
@@ -166,9 +165,10 @@ class DevCalc:
             self.SumList.append('CalcRT_FltFilterTimeD')
             self.SumList.append('CalcRT_FltFilterTimeM')
             self.SumList.append('CalcRT_FltFilterTimeY')
-
+            
             self.SumList_10m.append('ActPWR_Filter_AVG_10m')
             self.SumList_10m.append('Theory_PWR_Inter')
+            self.SumList_10m.append('Theory_PWR_Inter_his')
             self.SumList_10m.append('Theory_PWR_Inter_Filter')
             self.SumList_10m.append('Theory_PWR_Inter_Filter_his')
 
@@ -176,9 +176,10 @@ class DevCalc:
             self.AvgList_10m.append('WNAC_WdSpd_FilterAVG_10m')
             self.AvgList_10m.append('WNAC_WdSpd_AVG_10m')
 
+            self.MaxList_10m.append('WNAC_WdSpd_MAX_10m')
+
             project = self.xmlTree.find('./project')
             project_id = project.attrib['ID']
-            # CountMapInit字典
             self.CountMapInit[(project_id, 'all', devStatus.stop)] = 0
             self.CountMapInit[(project_id, 'all', devStatus.run)] = 0
             self.CountMapInit[(project_id, 'all', devStatus.ready)] = 0
@@ -211,7 +212,7 @@ class DevCalc:
                 self.NumMap[farm_code] = 0
                 for para in self.SumList + self.AvgList:
                     self.SumMapInit[(farm_code, para)] = 0
-                for para in self.SumList_10m + self.AvgList_10m:
+                for para in self.SumList_10m + self.AvgList_10m + self.MaxList_10m:
                     self.SumMapInit_10m[(farm_code, para)] = [0,0]
                 # term期数级
                 listDevTerm = self.xmlTree.findall('.//farmStation[@ID="%s"]/term[@Calc="True"]' % farmStation.attrib['ID'])
@@ -228,7 +229,7 @@ class DevCalc:
                     self.NumMap[term_code] = 0
                     for para in self.SumList + self.AvgList:
                         self.SumMapInit[(term_code, para)] = 0 
-                    for para in self.SumList_10m + self.AvgList_10m:
+                    for para in self.SumList_10m + self.AvgList_10m + self.MaxList_10m:
                         self.SumMapInit_10m[(term_code, para)] = [0,0]
                     # line设备级
                     listLine = self.xmlTree.findall('.//farmStation[@ID="%s"]/term[@ID="%s"][@Calc="True"]/line' % (
@@ -258,6 +259,7 @@ class DevCalc:
                             altitude = dev.attrib['altitude']
                             hubHeight = dev.attrib['hubHeight']
                             HashKey = term_code + ':' + devNO
+                            self.tags.append(HashKey)
                             self.first_into_limitDelay_dict[HashKey] = 0
                             if HashKey not in self.ValueMap:
                                 self.ValueMap[HashKey] = dict()
@@ -294,7 +296,7 @@ class DevCalc:
         self.nowtime = int(time.time())
         self.CountMap = copy.deepcopy(self.CountMapInit)
         self.SumMap = copy.deepcopy(self.SumMapInit)
-        for HashKey, attrs in self.devsCalcDict.items():
+        for HashKey, _ in self.devsCalcDict.items():
             tag_list = list()
             tag_list.append('NewCalcRT_StndSt')
             tag_list.append('NewCalcRT_PrevStndSt')
@@ -312,16 +314,12 @@ class DevCalc:
                         self.StMap[HashKey][1] = int(values[1])
                     elif tag == 'NewCalcRT_PrevStndSt':
                         self.StMap[HashKey][0] = int(values[1])
-            devType = attrs['devType']
             publish_ch_list = str(HashKey).split(':')
             project = publish_ch_list[0]
             farm = publish_ch_list[1]
             term = publish_ch_list[2]
-            line = attrs['line']
-            line_full = (':').join([project, farm, term, line])
             term_full = (':').join([project, farm, term])
             farm_full = (':').join([project, farm])
-            root_full = (':').join([project])
             #检查状态
             self._check_st(HashKey)
             #计算总和
@@ -343,80 +341,82 @@ class DevCalc:
         today_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(today_time))
         day_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(day_time))
         
-        # day_time_str = "2023-1-25 00:00:00"
-        # today_time_str = "2023-1-26 00:00:00"
+        # day_time_str = "2023-2-13 00:00:00"
+        # today_time_str = "2023-2-14 00:00:00"
         
-        # today_time = int(time.mktime(time.strptime(today_time_str,"%Y-%m-%d %H:%M:%S")))
-        # day_time = int(time.mktime(time.strptime(day_time_str,"%Y-%m-%d %H:%M:%S")))
-
         print(day_time_str + " to " + today_time_str)
-        self.dev_calc_10min(day_time,today_time)
+        self.dev_calc_10min(day_time_str,today_time_str)
     
     # 10分钟数据计算
-    def dev_calc_10min(self,day_time,today_time):
+    def dev_calc_10min(self,day_time_str,today_time_str):
         self.SumMap_10m = copy.deepcopy(self.SumMapInit_10m)
-        today_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(today_time))
-        day_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(day_time))
+        today_time = int(time.mktime(time.strptime(today_time_str,"%Y-%m-%d %H:%M:%S")))
+        day_time = int(time.mktime(time.strptime(day_time_str,"%Y-%m-%d %H:%M:%S")))
         WNAC_WdSpd_filter = [["gte","50"],["lte","0"]]
         WNAC_ExTmp_filter = [["gte","60"],["lte","-60"]]
-        WNAC_WdSpd_AVG_10m = getdata.getdata('WNAC_WdSpd', 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes',filter=WNAC_WdSpd_filter)
-        WNAC_ExTmp_AVG_10m = getdata.getdata('WNAC_ExTmp', 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes',filter=WNAC_ExTmp_filter)
-        ActPWR_AVG_10m = getdata.getdata('ActPWR', 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
-        NewCalcRT_StndSt_AVG_10m = getdata.getdata('NewCalcRT_StndSt', 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
-        WNAC_WdSpd_DEV_10m = getdata.getdata('WNAC_WdSpd', 'dev', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
+        WNAC_WdSpd_AVG_10m = getdata.getdata('WNAC_WdSpd',self.tags, 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes',filter=WNAC_WdSpd_filter)
+        WNAC_WdSpd_MAX_10m = getdata.getdata('WNAC_WdSpd',self.tags, 'max', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes',filter=WNAC_WdSpd_filter)
+        WNAC_ExTmp_AVG_10m = getdata.getdata('WNAC_ExTmp',self.tags, 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes',filter=WNAC_ExTmp_filter)
+        ActPWR_AVG_10m = getdata.getdata('ActPWR',self.tags, 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
+        NewCalcRT_StndSt_AVG_10m = getdata.getdata('NewCalcRT_StndSt',self.tags, 'avg', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
+        WNAC_WdSpd_DEV_10m = getdata.getdata('WNAC_WdSpd',self.tags, 'dev', day_time, today_time, 'end', None, None, samplingValue='10', samplingUnit='minutes')
         data = WNAC_ExTmp_AVG_10m
-        point = 'WNAC_ExTmp'
         for HashKey in data:
             for i in range(len(data[HashKey])):
                 value = float(format(data[HashKey][i][1], '.6f'))
                 timeint = int(data[HashKey][i][0]/1000)
-                self._set_value(HashKey,point+'_AVG_10m',value,time=timeint)
+                self._set_value(HashKey,'WNAC_ExTmp_AVG_10m',value,time=timeint)
         data = ActPWR_AVG_10m
-        point = 'ActPWR'
         for HashKey in data:
             for i in range(len(data[HashKey])):
                 value = float(format(data[HashKey][i][1], '.6f'))
                 timeint = int(data[HashKey][i][0]/1000)
-                self._set_value(HashKey,point+'_AVG_10m',value,time=timeint)
+                self._set_value(HashKey,'ActPWR_AVG_10m',value,time=timeint)
         data = NewCalcRT_StndSt_AVG_10m
-        point = 'NewCalcRT_StndSt'
         for HashKey in data:
             for i in range(len(data[HashKey])):
                 value = float(format(data[HashKey][i][1], '.6f'))
                 timeint = int(data[HashKey][i][0]/1000)
-                self._set_value(HashKey,point+'_AVG_10m',value,time=timeint)
+                self._set_value(HashKey,'NewCalcRT_StndSt_AVG_10m',value,time=timeint)
         data = WNAC_WdSpd_DEV_10m
-        point = 'WNAC_WdSpd'
         for HashKey in data:
             for i in range(len(data[HashKey])):
                 value = float(format(data[HashKey][i][1], '.6f'))
                 timeint = int(data[HashKey][i][0]/1000)
-                self._set_value(HashKey,point+'_DEV_10m',value,time=timeint)
-        data = WNAC_WdSpd_AVG_10m
-        point = 'WNAC_WdSpd'
+                self._set_value(HashKey,'WNAC_WdSpd_DEV_10m',value,time=timeint)
+        data = WNAC_WdSpd_MAX_10m
         for HashKey in data:
-            if HashKey in self.devsCalcDict:
-                for i in range(len(data[HashKey])):
-                    value = float(format(data[HashKey][i][1], '.6f'))
-                    timeint = int(data[HashKey][i][0]/1000)
-                    WNAC_ExTmp = self.getvalue(HashKey,'WNAC_ExTmp_AVG_10m',timeint) # 温度
-                    WNAC_WdSpd_DEV_10m = self.getvalue(HashKey,'WNAC_WdSpd_DEV_10m',timeint) # 标准差
-                    NewCalcRT_StndSt_AVG_10m = self.getvalue(HashKey,'NewCalcRT_StndSt_AVG_10m',timeint) # 状态
-                    if value and WNAC_ExTmp and WNAC_WdSpd_DEV_10m and WNAC_WdSpd_DEV_10m >= 0.001 or WNAC_ExTmp >= 6:
-                        self._set_value(HashKey,point+'_AVG_10m',value,time=timeint)
-                        if NewCalcRT_StndSt_AVG_10m != 5:
-                            self._set_value(HashKey,point+'_FilterAVG_10m',value,time=timeint)
+            for i in range(len(data[HashKey])):
+                value = float(format(data[HashKey][i][1], '.6f'))
+                timeint = int(data[HashKey][i][0]/1000)
+                NewCalcRT_StndSt_AVG_10mi = self.getvalue(HashKey,'NewCalcRT_StndSt_AVG_10m',timeint) # 状态
+                if NewCalcRT_StndSt_AVG_10mi and NewCalcRT_StndSt_AVG_10mi != 5:
+                    self._set_value(HashKey,'WNAC_WdSpd_MAX_10m',value,time=timeint)
+        data = WNAC_WdSpd_AVG_10m
+        for HashKey in data:
+            for i in range(len(data[HashKey])):
+                value = float(format(data[HashKey][i][1], '.6f'))
+                timeint = int(data[HashKey][i][0]/1000)
+                WNAC_ExTmpi = self.getvalue(HashKey,'WNAC_ExTmp_AVG_10m',timeint) # 温度
+                WNAC_WdSpd_DEV_10mi = self.getvalue(HashKey,'WNAC_WdSpd_DEV_10m',timeint) # 标准差
+                NewCalcRT_StndSt_AVG_10mi = self.getvalue(HashKey,'NewCalcRT_StndSt_AVG_10m',timeint) # 状态
+                if value and WNAC_ExTmpi and WNAC_WdSpd_DEV_10mi and WNAC_WdSpd_DEV_10mi >= 0.001 or WNAC_ExTmpi >= 6:
+                    self._set_value(HashKey,'WNAC_WdSpd_AVG_10m',value,time=timeint)
+                    if NewCalcRT_StndSt_AVG_10mi and NewCalcRT_StndSt_AVG_10mi != 5:
+                        self._set_value(HashKey,'WNAC_WdSpd_FilterAVG_10m',value,time=timeint)
             else:
                 for i in range(len(data[HashKey])):
                     value = float(format(data[HashKey][i][1], '.6f'))
                     timeint = int(data[HashKey][i][0]/1000)
-                    self._set_value(HashKey,point+'_AVG_10m',value,time=timeint)
+                    self._set_value(HashKey,'WNAC_WdSpd_AVG_10m',value,time=timeint)
                     if NewCalcRT_StndSt_AVG_10m != 5:
-                        self._set_value(HashKey,point+'_FilterAVG_10m',value,time=timeint)
+                        self._set_value(HashKey,'WNAC_WdSpd_FilterAVG_10m',value,time=timeint)
         
         print('getvalue end',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
-        self.pwrcalc(today_time_str,day_time_str)
-        print('calculate end',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+        self.pwrcalc(day_time_str, today_time_str)
+        print('pwrcalc end',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+        self.calc_lost_power(day_time_str, today_time_str)
+        print('calc_lost_power end',time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
         self.pip.execute()
         if self.MsgList:
             if self.redis.conn.publish(channel_main, zlib.compress((',').join(self.MsgList))) <= 0:
@@ -425,9 +425,9 @@ class DevCalc:
         self.output_his_data()
 
     # 功率计算
-    def pwrcalc(self,today_time,day_time):
+    def pwrcalc(self,day_time_str, today_time_str):
         frequency = 60 * 10
-        from_time, to_time = pd.to_datetime(day_time), pd.to_datetime(today_time)
+        from_time, to_time = pd.to_datetime(day_time_str), pd.to_datetime(today_time_str)
         time_range = list(pd.date_range(from_time, to_time, freq='%sS' % frequency))
         if to_time not in time_range:
             time_range.append(to_time)
@@ -446,7 +446,6 @@ class DevCalc:
                         project = publish_ch_list[0]
                         farm = publish_ch_list[1]
                         term = publish_ch_list[2]
-                        line = attrs['line']
                         term_full = (':').join([project, farm, term])
                         farm_full = (':').join([project, farm])
                         devtype = attrs['devType']      # 设备型号
@@ -465,7 +464,7 @@ class DevCalc:
                         Interval_array = np.asarray(Interval_array)
                         idx = (np.abs(Interval_array - windspd_stnd)).argmin()
                         WNAC_WdSpd_Interval_10m = float(format(Interval_array[idx], '.1f'))   # 10分钟风速区间对应值
-                        self._set_value(HashKey,'WNAC_WdSpd_Interval_10m',WNAC_WdSpd_Interval_10m,timestamp)    
+                        self._set_value(HashKey,'WNAC_WdSpd_Interval_10m',WNAC_WdSpd_Interval_10m,timestamp)
                         density_10m_value = float(format(density_10m, '.6f'))
                         windspd_stnd_value = float(format(windspd_stnd, '.6f'))
                         self._set_value(HashKey,'CalcRT_density_AVG_10m',density_10m_value,timestamp)
@@ -552,6 +551,12 @@ class DevCalc:
                                 self.SumMap_10m[(farm_full, point)][0] += pointvalue        
                                 self.SumMap_10m[(term_full, point)][1] += 1
                                 self.SumMap_10m[(farm_full, point)][1] += 1
+                        for point in self.MaxList_10m:
+                            pointvalue = self.getvalue(HashKey,point,timestamp)
+                            if pointvalue is not None:
+                                prevalue = self.SumMap_10m[(term_full, point)][0]
+                                self.SumMap_10m[(farm_full, point)][0] = max(pointvalue,prevalue)        
+                        
                 except Exception as e:
                     print(e)
             for (rediskey, redistag), sumvalue in self.SumMap_10m.items():
@@ -656,6 +661,194 @@ class DevCalc:
             power_curve_dict[Hashkey] = array
         return power_curve_dict
 
+    # 计算损失电量
+    def calc_lost_power(self,day_time_str, today_time_str):
+        day_time = time.mktime(time.strptime(day_time_str, "%Y-%m-%d %H:%M:%S"))
+        today_time = time.mktime(time.strptime(today_time_str, "%Y-%m-%d %H:%M:%S"))
+        NewCalc_Stndst = getdata.getdata('NewCalcRT_StndSt',self.tags, 'sum', day_time, today_time, 'end', None, None, samplingValue='1', samplingUnit='milliseconds')
+        frequency = 10 * 60
+        time_ranges = self.split_time_ranges(day_time_str, today_time_str, frequency)
+        listing = self.getlistingdata(day_time_str, today_time_str) # 挂牌记录
+        for timearray in time_ranges:
+            fromtime = int(time.mktime(time.strptime(timearray[0], "%Y-%m-%d %H:%M:%S")))
+            totime = int(time.mktime(time.strptime(timearray[1], "%Y-%m-%d %H:%M:%S")))
+            lostpwr_sumdict = {}
+            for HashKey, _ in self.devsCalcDict.items():
+                publish_ch_list = str(HashKey).split(':')
+                project = publish_ch_list[0]
+                farm = publish_ch_list[1]
+                term = publish_ch_list[2]
+                term_full = (':').join([project, farm, term])
+                farm_full = (':').join([project, farm])
+                if term_full not in lostpwr_sumdict:
+                    lostpwr_sumdict[term_full] = {}
+                if farm_full not in lostpwr_sumdict:
+                    lostpwr_sumdict[farm_full] = {}
+                ActPWR_AVG_10m = self.getvalue(HashKey,'ActPWR_AVG_10m',totime)
+                Theory_PWR_Inter_his = self.getvalue(HashKey,'Theory_PWR_Inter_his',totime)
+                if Theory_PWR_Inter_his and ActPWR_AVG_10m:
+                    lostpwr = Theory_PWR_Inter_his - ActPWR_AVG_10m if Theory_PWR_Inter_his > ActPWR_AVG_10m else 0 # 10分钟总损失电量
+                    self._set_value(HashKey,'CalcRT_LostPwr_All',lostpwr/6,totime)
+                    if 'All' in lostpwr_sumdict[farm_full]:
+                        lostpwr_sumdict[farm_full]['All'] += lostpwr/6
+                    else:
+                        lostpwr_sumdict[farm_full]['All'] = lostpwr/6
+                    if 'All' in lostpwr_sumdict[term_full]:
+                        lostpwr_sumdict[term_full]['All'] += lostpwr/6
+                    else:
+                        lostpwr_sumdict[term_full]['All'] = lostpwr/6
+                    lostpwr_dict = {}
+                    if HashKey in NewCalc_Stndst:
+                        NewCalc_Stndst_HashKey = NewCalc_Stndst[HashKey] 
+                        NewCalc_Stndst_HashKey.sort()
+                        values = []
+                        for Stndst in NewCalc_Stndst_HashKey:
+                            timei = Stndst[0]/1000
+                            valuei = Stndst[1]
+                            code = self.transfmt(valuei,"st")
+                            if fromtime < timei < totime:
+                                values.append([timei,code])
+                        values.sort()
+                        values.append([fromtime,values[0][1]])
+                        values.append([totime,values[len(values) - 1][1]])
+                        values.sort()
+                        overlaparr = self.findoverlap(HashKey, listing, fromtime, totime)
+                        if overlaparr:
+                            code           = overlaparr[0]
+                            overlap_start  = overlaparr[1]
+                            overlap_end    = overlaparr[2]
+                            code2 = 0
+                            entryi = 0
+                            for value in values:
+                                timei = value[0]
+                                codei = value[1]
+                                if overlap_start < timei < overlap_end:
+                                    if entryi == 0:
+                                        code2 = codei
+                                        entryi += 1
+                            values.append([overlap_start,code2])
+                            values.append([overlap_end,code])
+                            values = [i for i in values if i <= overlap_start and  i >= overlap_end]
+                            values.sort()
+                        for i in range(1,len(values)):
+                            timei = values[i][0] - values[i - 1][0]
+                            valuei = values[i][1]
+                            lostpwri = timei/3600.0*lostpwr
+                            if valuei in lostpwr_dict:
+                                lostpwr_dict[valuei] += lostpwri
+                            else:
+                                lostpwr_dict[valuei] = lostpwri
+                            if valuei in lostpwr_sumdict[term_full]:
+                                lostpwr_sumdict[term_full][valuei] += lostpwri
+                            else:
+                                lostpwr_sumdict[term_full][valuei] = lostpwri
+                            if valuei in lostpwr_sumdict[farm_full]:
+                                lostpwr_sumdict[farm_full][valuei] += lostpwri
+                            else:
+                                lostpwr_sumdict[farm_full][valuei] = lostpwri
+                        
+                        for i in range(1,13):
+                            self._set_value(HashKey,'CalcRT_LostPwr_' + str(i), 0, totime) 
+                        for key, attrs in lostpwr_dict.items():
+                            self._set_value(HashKey,'CalcRT_LostPwr_' + str(key), attrs, totime)
+            for key in lostpwr_sumdict:
+                for i in range(1,13):
+                    self._set_value(key,'CalcRT_LostPwr_' + str(i), 0, totime)
+                for num in lostpwr_sumdict[key]:
+                    self._set_value(key,'CalcRT_LostPwr_' + str(num), lostpwr_sumdict[key][num], totime)
+
+    # 获取挂牌记录
+    def getlistingdata(self,day_time_str,today_time_str):
+        try:
+            self.my.connectionForLocal()
+            sql = "SELECT t.device,t.listingNo,t.realBgnTm,t.realEndTm from scada_listing_result_his t where realBgnTm >= '{0}' and realEndTm <= '{1}'" \
+                .format(day_time_str, today_time_str)
+            self.my.execu(sql)
+            self.my.commit()
+            results = self.my.fetchall()
+            if results:
+                results_dict = {}
+                for result in results:
+                    HashKey = result[0]
+                    code = result[1]
+                    begintime = result[2]
+                    endtime = result[3]
+                    if HashKey in results_dict:
+                        results_dict[HashKey].append([code, begintime, endtime])
+                    else:
+                        results_dict[HashKey] = [[code, begintime, endtime]]
+                return results_dict
+            else:
+                return None
+        except Exception as e:
+            print(e)
+        self.my.disconnection()
+
+    # 寻找时间交集
+    def findoverlap(self,HashKey, listing, fromtime, totime):
+        if listing:
+            if HashKey in listing:
+                for i in range(len(listing[HashKey])):
+                    code = listing[HashKey][i][0]
+                    recode = self.transfmt(code, "guapai")
+                    begintime = listing[HashKey][i][1]
+                    endtime = listing[HashKey][i][2]
+                    begintime = int(time.mktime(begintime.timetuple()))
+                    endtime = int(time.mktime(endtime.timetuple()))
+                    overlap_start = max(begintime, fromtime)
+                    overlap_end = min(endtime, totime)
+                    if overlap_start < overlap_end:
+                        return (recode, overlap_start, overlap_end)
+
+    # 格式转换
+    def transfmt(self,code,fmt):
+        if fmt == "st":
+            if code == 0:       # 手动停机
+                return 3
+            elif code == 1:     # 正常发电
+                return 1
+            elif code == 2:     # 环境待命
+                return 2
+            elif code == 3:     # 维护状态
+                return 3
+            elif code == 4:     # 故障停机
+                return 4
+            elif code == 5:     # 未知状态
+                return 5
+            elif code == 6:     # 降出力运行
+                return 6
+            elif code == 7:     # 技术待命
+                return 7
+            elif code == 8:     # 电网故障
+                return 8
+        elif fmt == "guapai":
+            if code == 1:       # 覆冰停机
+                return 2
+            elif code == 2:     # 调度限电
+                return 9
+            elif code == 3:     # 输变电计划停运
+                return 11
+            elif code == 4:     # 输变电非计划停运
+                return 10
+            elif code == 5:     # 暴风停机
+                return 2
+            elif code == 6:     # 环境超温
+                return 2
+            elif code == 7:     # 故障维护
+                return 4
+            elif code == 8:     # 定检维护
+                return 3
+            elif code == 9:     # 计划检修
+                return 3
+            elif code == 10:    # 机组故障
+                return 4
+            elif code == 11:    # 自降容
+                return 6
+            elif code == 12:    # 电网检修
+                return 12
+            elif code == 13:    # 电网故障
+                return 8
+
     # 时间切片
     def split_time_ranges(self, from_time, to_time, frequency):
         from_time, to_time = pd.to_datetime(from_time), pd.to_datetime(to_time)
@@ -663,7 +856,6 @@ class DevCalc:
         if to_time not in time_range:
             time_range.append(to_time)
         time_range = [item.strftime("%Y-%m-%d %H:%M:%S") for item in time_range]
-        print(time_range)
         time_ranges = []
         for item in time_range:
             f_time = item
@@ -778,7 +970,7 @@ class DevCalc:
         if dev_name not in self.ValuesMap:
             self.ValuesMap[dev_name] = dict()
         if para_name not in self.ValuesMap[dev_name]:
-                self.ValuesMap[dev_name][para_name] = dict()
+            self.ValuesMap[dev_name][para_name] = dict()
         self.ValuesMap[dev_name][para_name][time] = value
         self.TimeMap[dev_name][para_name] = time
         datatype = 'S'
@@ -869,7 +1061,8 @@ class DevCalc:
 
 if __name__ == '__main__':
     devCalc = DevCalc()
+    # # devCalc.dev_calc_hismonth()
+    # day_time_str = "2023-2-13 00:00:00"
+    # today_time_str = "2023-2-14 00:00:00"
+    # devCalc.getlistingdata(day_time_str,today_time_str)
     devCalc.dev_calc_consistency()
-    # devCalc.dev_calc_hismonth()
-    # devCalc.get_power_curve_his()
-    

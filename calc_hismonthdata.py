@@ -22,8 +22,8 @@ def split_time_ranges(from_time, to_time, frequency):
         return time_ranges
 
 if __name__ == '__main__':
-    day_time_str = "2022-10-1 00:00:00"
-    today_time_str = "2023-2-5 00:00:00"
+    day_time_str = "2023-1-1 00:00:00"
+    today_time_str = "2023-2-20 00:00:00"
     
     day_time = time.strptime(day_time_str,"%Y-%m-%d %H:%M:%S")
     today_time = time.strptime(today_time_str,"%Y-%m-%d %H:%M:%S")
@@ -37,22 +37,5 @@ if __name__ == '__main__':
         print(time1 + ' to ' + time2)
         day_time = int(time.mktime(time.strptime(time1,"%Y-%m-%d %H:%M:%S")))
         today_time = int(time.mktime(time.strptime(time2,"%Y-%m-%d %H:%M:%S")))
-        mainHandler.dev_calc_10min(day_time,today_time)
+        mainHandler.dev_calc_10min(time1,time2)
     
-    mainHandler.dev_calc_hismonth()
-    # day_time_str = "2023-1-1 00:00:00"
-    # today_time_str = "2023-1-30 00:00:00"
-    
-    # day_time = time.strptime(day_time_str,"%Y-%m-%d %H:%M:%S")
-    # today_time = time.strptime(today_time_str,"%Y-%m-%d %H:%M:%S")
-    # frequency = 60 * 60 * 24
-    # time_ranges = split_time_ranges(day_time_str,today_time_str,frequency)
-
-    # for times in time_ranges:
-    #     time1 = times[0]
-    #     time2 = times[1]
-    #     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
-    #     print(time1 + ' to ' + time2)
-    #     day_time = int(time.mktime(time.strptime(time1,"%Y-%m-%d %H:%M:%S")))
-    #     today_time = int(time.mktime(time.strptime(time2,"%Y-%m-%d %H:%M:%S")))
-    #     mainHandler.dev_calc_10min(day_time,today_time)

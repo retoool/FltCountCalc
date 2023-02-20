@@ -40,7 +40,7 @@ class KairosData(object):
         except Exception as e:
             print('--init kairosdb is error:' + e.message)
 
-    def getdata(self, pointname, aggr, starttime, endtime, aligntime, minvalue, maxvalue, saveas=None, tagMatch=None, samplingValue=None, samplingUnit=None, filter=None):
+    def getdata(self, pointname, tags, aggr, starttime, endtime, aligntime, minvalue, maxvalue, saveas=None, tagMatch=None, samplingValue=None, samplingUnit=None, filter=None):
         try:
             if not self.session:
                 print('--init session is null')
@@ -49,16 +49,10 @@ class KairosData(object):
                         'end_absolute': endtime * 1000,
                         'metrics': [{}]
                         }
-            pos = pointname.rfind(':')
-            if pos >= 0:
-                devname = pointname[0:pos]
-                keyname = pointname[pos + 1:]
-                bodytext['metrics'][0]['name'] = keyname
-                bodytext['metrics'][0]['tags'] = {'project': [devname]}
-            else:
-                keyname = pointname
-                bodytext['metrics'][0]['name'] = keyname
-                bodytext['metrics'][0]['group_by'] = [{'name': 'tag', 'tags': ['project']}]
+            bodytext['metrics'][0]['group_by'] = [{'name': 'tag', 'tags': ['project']}]
+            bodytext['metrics'][0]['name'] = pointname
+            if tags != None:
+                bodytext['metrics'][0]['tags'] = {'project': tags}
             bodytext['metrics'][0]['aggregators'] = []
             if samplingValue == None and samplingUnit == None:
                 samplingValue = '10'
@@ -194,31 +188,61 @@ class KairosData(object):
         return
 
 if __name__ == '__main__':
+    # pass
+    # deletepoint = [
+    #     'WNAC_WdSpd_AVG_10m',
+    #     'WNAC_WdSpd_InterAVG_10m',
+    #     'WNAC_WdSpd_DEV_10m',
+    #     'WNAC_WdSpd_Interval_10m',
+    #     'NewCalcRT_StndSt_AVG_10m',
+    #     'WNAC_ExTmp_AVG_10m',
+    #     'ActPWR_AVG_10m',
+    #     'WROT_Pt1Ang_AVG_10m',
+    #     'WROT_Pt1Ang_MAX_10m',
+    #     'CalcRT_density_AVG_10m',
+    #     'CalcRT_WdSpdStnd_AVG_10m',
+    #     'ActPWR_Filter_Tag',
+    #     'ActPWR_Filter_AVG_10m',
+    #     'Theory_PWR_Inter',
+    #     'Theory_PWR_Inter_Filter',
+    #     'Theory_PWR_Interval',
+    #     'ActPWR_Fitting_AVG_10m',
+    #     'Theory_PWR_Inter_Fitting',
+    #     'Theory_PWR_Inter_Fitting_his',
+    #     'Theory_PWR_Inter_Filter_his',
+    #     'Theory_PWR_Inter_his',
+    #     'Theory_PWR_Inter_Filter_his',
+    #     'WNAC_WdSpd_FilterAVG_10m',
+    #     'WNAC_WdSpd_FilterStndSt_10m'
+    #     ]    
     deletepoint = [
-        'WNAC_WdSpd_AVG_10m',
-        'WNAC_WdSpd_InterAVG_10m',
-        'WNAC_WdSpd_DEV_10m',
-        'WNAC_WdSpd_Interval_10m',
-        'NewCalcRT_StndSt_AVG_10m',
-        'WNAC_ExTmp_AVG_10m',
-        'ActPWR_AVG_10m',
-        'WROT_Pt1Ang_AVG_10m',
-        'WROT_Pt1Ang_MAX_10m',
-        'CalcRT_density_AVG_10m',
-        'CalcRT_WdSpdStnd_AVG_10m',
-        'ActPWR_Filter_Tag',
-        'ActPWR_Filter_AVG_10m',
-        'Theory_PWR_Inter',
-        'Theory_PWR_Inter_Filter',
-        'Theory_PWR_Interval',
-        'ActPWR_Fitting_AVG_10m',
-        'Theory_PWR_Inter_Fitting',
-        'Theory_PWR_Inter_Fitting_his',
-        'Theory_PWR_Inter_Filter_his',
-        'Theory_PWR_Inter_his',
-        'Theory_PWR_Inter_Filter_his',
-        'WNAC_WdSpd_FilterAVG_10m',
-        'WNAC_WdSpd_FilterStndSt_10m'
+        'CalcRT_LostPwr_0',
+        'CalcRT_LostPwr_1',
+        'CalcRT_LostPwr_2',
+        'CalcRT_LostPwr_3',
+        'CalcRT_LostPwr_4',
+        'CalcRT_LostPwr_5',
+        'CalcRT_LostPwr_6',
+        'CalcRT_LostPwr_7',
+        'CalcRT_LostPwr_8',
+        'CalcRT_LostPwr_9',
+        'CalcRT_LostPwr_10',
+        'CalcRT_LostPwr_11',
+        'CalcRT_LostPwr_12',
+        'CalcRT_LostPwr_13',
+        'CalcRT_LostPwr_21',
+        'CalcRT_LostPwr_22',
+        'CalcRT_LostPwr_23',
+        'CalcRT_LostPwr_30',
+        'CalcRT_LostPwr_40',
+        'CalcRT_LostPwr_50',
+        'CalcRT_LostPwr_62',
+        'CalcRT_LostPwr_71',
+        'CalcRT_LostPwr_73',
+        'CalcRT_LostPwr_74',
+        'CalcRT_LostPwr_75',
+        'CalcRT_LostPwr_76',
+        'CalcRT_LostPwr_All'
         ]
     kairosdata = KairosData()
     for point in deletepoint:

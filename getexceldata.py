@@ -67,7 +67,9 @@ class GetEXCELData:
                 updatesql = "UPDATE scada_wind_machine SET altitude = '{0}', hubHeight = '{1}' WHERE id = '{2}'".format(altitude, hubHeight, id)
                 print(updatesql)
                 self.my.execu(updatesql)
+                print('execu')
                 self.my.commit()
+                print('commit')
 
     def getorgcode(self, parentid, sqlResult, code):
         for i in range(0,len(sqlResult)):
